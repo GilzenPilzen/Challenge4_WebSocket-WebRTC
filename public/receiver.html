@@ -5,23 +5,109 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WebRTC</title>
   <style>
+    body {
+      background: #202020;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: white;
+    }
+    .container {
+      display: none;
+      width: 100vw;
+    }
+    #container-name {
+      height: 100vh;
+    }
+    .container--visible {
+      display: flex;
+      flex-flow: column;
+      justify-content: center;
+      align-items: center;
+      justify-content: center;
+
+    }
+
+    #nameInput, #nameSubmit{
+      font-size: 26px;
+      border: 0;
+      padding: 15px;
+      margin: 5px;
+      text-transform: uppercase;
+    } 
+
     video {
-      max-width: 100%;
+      max-width: 70vw;
       height: auto;
+    }
+    .control-buttons {
+      display: flex;
+      padding: 5em;
+    }
+    .button {
+      border-radius: 0;
+      border: 1px solid white;
+      color: white; 
+      background: transparent;
+      font-size: 20px;
+      padding: 15px;
+      margin: 15px;
+      text-transform: uppercase;
+      transition: .25s;
+      display: block;
+    }
+    .button:hover {
+      background: white;
+      color: #202020;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <h1>Receiver</h1>
-  <video id="otherCamera" playsinline autoplay muted controls></video>
+  <div id="container-name" class="container container--visible">
+    <form id="nameForm" method="post" action="">
+      <input id="nameInput" type="text" name="nameInput" placeholder="your device" />
+      <button id="nameSubmit" type="submit">Connect</button>
+    </form>
+  </div>
+  <div id="container-stream" class="container">
+    <h1>Receiver</h1>
+    <div>
+      <video id="otherCamera" playsinline autoplay></video>
+      <!-- <video id="faceCamera" playsinline autoplay muted controls></video> -->
+    </div>
+      <!-- <button id="playClipInput" value="https://www.youtube.com/watch?v=3OEfgHQpWqY&ab_channel=SunMusicEDM">Play youtube</button> -->
+      
+    <div class="control-buttons">
+      <button class="button" id="playVideo">Play video</button>
+      <button class="button" id="pauseVideo">Pause video</button>
+      <button class="button" id="fullScreen">big screen</button>
+    </div>
+  </div>
+
+  
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/simple-peer/9.7.2/simplepeer.min.js" integrity="sha512-RZlErEuUwWv3EhGNhvni9vinu0QPwNU0OyWAlhTeezEToTZu/C+/Mn7ItRFmpcf8MTK0J2kRalSfzrpQqF7wJQ==" crossorigin="anonymous"></script>
   <script type="module">
 
     const $otherCamera = document.getElementById('otherCamera');
 
+    //dom objects
+    const $nameContainer = document.getElementById('container-name');
+    const $streamContainer = document.getElementById('container-stream');
+
+    //form
+    const $nameForm = document.getElementById('nameForm');
+    const $nameInput = document.getElementById('nameInput');
+
+    //buttons
+    const $playClipInput = document.getElementById('playClipInput');
+    const $pauseVideo = document.getElementById('pauseVideo');
+    const $playVideo = document.getElementById('playVideo');
+    const $fullScreen = document.getElementById('fullScreen');
+
     let socket;
     let peer;
+    let url;
+    let name;
 
     const servers = {
       iceServers: [{
@@ -31,9 +117,23 @@
 
     const init = async () => {
       initSocket();
+      
       $otherCamera.addEventListener('click', () => {
         $otherCamera.play();
       });
+
+      $playVideo.addEventListener('click', () => {
+        $otherCamera.play();
+      });
+
+      $pauseVideo.addEventListener('click', () => {
+        $otherCamera.pause();
+      });
+
+      $fullScreen.addEventListener('click', () => {
+        $otherCamera.requestFullscreen();
+      });
+
     };
 
     const initSocket = () => {
@@ -41,14 +141,36 @@
       socket.on(`connect`, () => {
         console.log(socket.id);
       });
-      socket.on('signal', async (myId, signal, peerId) => {
+      socket.on('name', name => {
+        console.log(`Received name: ${name}`);
+        $nameContainer.classList.remove('container--visible');
+        $streamContainer.classList.add('container--visible');
+      });
+
+
+      socket.on('signal', async (myId, signal, peerId, name) => {
         console.log(`Received signal from ${peerId}`);
         console.log(signal);
         if (signal.type === 'offer') {
-          answerPeerOffer(myId, signal, peerId);
+          answerPeerOffer(myId, signal, peerId, $nameInput.value);
         }
         peer.signal(signal);
       });
+
+      // $playClipInput.addEventListener('click', () => {
+      //   socket.on('openLink', async peerId => {
+      //     //sendYtURL(peerId);
+      //     console.log($playClipInput.value);
+      //     socket.emit('openLink', $playClipInput.value , peerId);
+      //    });
+      // })
+
+      $nameForm.addEventListener('submit', e => handleSubmitName(e));
+    };
+
+    const handleSubmitName = e => {
+      e.preventDefault();
+      socket.emit('name', $nameInput.value);
     };
 
     const answerPeerOffer = async (myId, offer, peerId) => {
@@ -59,7 +181,17 @@
       peer.on('stream', stream => {
         $otherCamera.srcObject = stream;
       });
+      // peer.on('stream', stream => {
+      //   $faceCamera.srcObject = stream;
+      // });
     };
+
+    const sendYtURL = async (peerId) => {
+
+      url = "https://www.youtube.com/watch?v=3OEfgHQpWqY&ab_channel=SunMusicEDM";
+      console.log(url); 
+      
+    }
 
     init();
 
